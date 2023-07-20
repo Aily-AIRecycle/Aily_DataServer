@@ -15,9 +15,21 @@ import random
 
 load_dotenv()
 global real
-global nowTime
-global lestTime
+global fristtime
+global lasttime
+fristtime = 1689778800
+lasttime = 1689864600
 
+def first_time_set():
+    global fristtime
+    fristtime = time.time
+    print("fristtime = " + fristtime)
+    
+    
+def last_time_set():
+    global lasttime
+    lasttime = time.time
+    print("lasttime = " + lasttime)
 
 real = True
 
@@ -33,15 +45,6 @@ app.config['MYSQL_HOST'] = os.getenv("MYSQL_HOST")
 app.config['MYSQL_DB'] = os.getenv("MYSQL_DB")
 
 
-def now_time():
-    global nowTime
-    nowTime = time.time()
-    return nowTime
-
-# def least_time():
-#     global lestTime
-#     lestTime = time.time()
-#     return lestTime
 
 #db에 데이터값 저장
 def save_data(day,number,can,pet,gen):
@@ -53,11 +56,11 @@ def save_data(day,number,can,pet,gen):
 
 #기계별로 캔,페트,일반 더한 값
 def data_all_sum(datanumber):
-    # global nowTime
-    # global lestTime
+    global fristtime
+    global lasttime
     with app.app_context():
         cur = mysql.connection.cursor()
-        cur.execute("SELECT SUM(resultdata.can),SUM(resultdata.pet), SUM(resultdata.gen) FROM resultdata WHERE number = %s",(datanumber))
+        cur.execute("SELECT SUM(resultdata.can),SUM(resultdata.pet), SUM(resultdata.gen) FROM resultdata WHERE number = %s AND resultdata.localdate BETWEEN %s AND %s",(datanumber,fristtime,lasttime))
         results = cur.fetchall() 
         cur.close()
         data = [item for item in results[0]]
@@ -65,11 +68,11 @@ def data_all_sum(datanumber):
 
 #기계별로 캔,페트,일반 다 더한 값
 def all_sum(datanumber):
-    # global nowTime
-    # global lestTime
+    global fristtime
+    global lasttime
     with app.app_context():
         cur = mysql.connection.cursor()
-        cur.execute("SELECT SUM(resultdata.can) + SUM(resultdata.pet) + SUM(resultdata.gen) FROM resultdata WHERE number = %s",(datanumber))
+        cur.execute("SELECT SUM(resultdata.can) + SUM(resultdata.pet) + SUM(resultdata.gen) FROM resultdata WHERE number = %s AND resultdata.localdate BETWEEN %s AND %s",(datanumber,fristtime,lasttime))
         results = cur.fetchall() 
         cur.close()
         data = [int(item[0]) for item in results]
@@ -85,8 +88,8 @@ def data_all_number():
         data = [item[0] for item in pp]
         return data
 
-#db의 모든 데이터 조회
-def find_all_data():
+#각 캔,페트,일반의 비율의 데이터를 검색
+def find_all_pddata():
     with app.app_context():
         cur = mysql.connection.cursor()
         cur.execute("SELECT DISTINCT * FROM pd")
@@ -132,7 +135,7 @@ def send_all_data():
     # Modifier to operate at a fixed time
     start_time = datetime.time(00, 30, 0) # hours minutes seconds
     end_time = datetime.time(23, 59, 10) # hours minutes seconds
-    dd = find_all_data()
+    dd = find_all_pddata()
     return dd
     
 
@@ -143,12 +146,14 @@ def send_all_data():
     
 ##정해진 시간에 열리는 수식어와 아래의 스케쥴 함수를 이용하면 정확히 정해진 시각에 1번만 작동
 schedule = BackgroundScheduler(timezone='Asia/Seoul') 
-# schedule.add_job(now_time, 'cron', hour='00', minute='00', second='00')
 # schedule.add_job(AvgData, 'cron', hour='23', minute='59', second='03')
+#-------00시 자정 시간 체크
+schedule.add_job(first_time_set, 'cron', hour='00', minute='00', second='00')
+#-------11시 59분 마지막 시간 체크
+schedule.add_job(last_time_set, 'cron', hour='00', minute='00', second='00')
 
 
-# schedule.add_job(update_data, 'cron', second='10')
-# schedule.add_job(least_time, 'cron', second='10')
+
 
 schedule.start()
 

@@ -16,8 +16,10 @@ import random
 
 load_dotenv()
 global real
-global nowTime
-global lestTime
+global fristtime
+global lasttime
+fristtime = 1689778800
+lasttime = 1689864600
 
 app = Flask(__name__)
 
@@ -30,6 +32,19 @@ app.config['MYSQL_PASSWORD'] = os.getenv("MYSQL_PASSWORD")
 app.config['MYSQL_HOST'] = os.getenv("MYSQL_HOST")
 app.config['MYSQL_DB'] = os.getenv("MYSQL_DB")
 
+def first_time_set():
+    global fristtime
+    fristtime = time.time
+    print("fristtime = " + fristtime)
+    
+    
+def last_time_set():
+    global lasttime
+    lasttime = time.time
+    print("lasttime = " + lasttime)
+    
+
+#kg데이터를 db에 저장
 def save_kgdata(day,number,can,pet,gen):
     with app.app_context():
         cur = mysql.connection.cursor()
@@ -37,7 +52,7 @@ def save_kgdata(day,number,can,pet,gen):
         mysql.connection.commit() 
         cur.close()
 
-
+#cfp데이터를 db에 저장
 def save_CFPdata(day,number,can,pet):
     with app.app_context():
         cur = mysql.connection.cursor()
@@ -45,7 +60,7 @@ def save_CFPdata(day,number,can,pet):
         mysql.connection.commit() 
         cur.close()
 
-#데이터의 kg을 모두 조회
+#kg의 데이터를 모두 조회
 def find_all_kgdata():
     with app.app_context():
         cur = mysql.connection.cursor()
@@ -64,6 +79,25 @@ def find_all_kgdata():
             }
         return datalist
 
+#cfp(절약되는 탄소의양)의 데이터를 모두 조회(gm 기준)
+def find_all_cfp():
+    with app.app_context():
+        cur = mysql.connection.cursor()
+        cur.execute("SELECT * FROM cfp")
+        rows = cur.fetchall()
+        cur.close()
+        datalist = {}
+        for row in rows:
+            date, number, can, pet = row
+            if date not in datalist:
+                datalist[date] = {}
+            datalist[date][number] = {
+                "can": format(can, ".2f"),
+                "pet": format(pet, ".2f")
+            }
+        return datalist
+
+
 
 #설치된 기계의 넘버링 모두 조회
 def data_all_number():
@@ -77,15 +111,17 @@ def data_all_number():
 
 #기계별로 캔,페트,일반 더한 값
 def Bring_All_Data(number):
+    global fristtime
+    global lasttime
     with app.app_context():
         cur = mysql.connection.cursor()
-        cur.execute("SELECT sum(can*15), sum(gen*15), sum(pet*15) FROM resultdata where number= %s",(number))
+        cur.execute("SELECT sum(can*15.5), sum(gen*15), sum(pet*16.2) FROM resultdata where number= %s AND resultdata.localdate BETWEEN %s AND %s",(number,fristtime,lasttime))
         results = cur.fetchall() 
         cur.close()
         data = [int(item) for item in results[0]]
         return data
 
-#기계별로 kg을 구해서 백엔드로 정보 전송 (현재까지 버려진 kg or 달 별로 계산 가능)
+#기계별로 kg을 구해서 백엔드로 정보를 db에 저장 (현재까지 버려진 kg or 달 별로 계산 가능)
 def KgData():
     date_strin = datetime.datetime.now()
     now = date_strin.strftime("%Y-%m-%d")
@@ -112,36 +148,78 @@ def send_all_kgdata():
     return dd
 
 
-#각 기계별 페트,캔의 탄소 저감량 캔 절감되는 에너지양 95%기준, 페트 70% 기준
+#각 기계별 페트,캔의 탄소 저감량 캔 절감되는 에너지양 (95%기준, 페트 70% 기준) 프론트로 전송
 def CFP():
     date_strin = datetime.datetime.now()
     now = date_strin.strftime("%Y-%m-%d")
-    
     machinenumber = data_all_number()
     machinenumber.sort()
-    dd = Bring_All_Data("1")
-    datalist = {now: {}}
     for number in machinenumber:
         numberdata = Bring_All_Data(str(number))
         print(numberdata)
         can = numberdata[0]*10*0.95
         pet = numberdata[2]*3.8*0.7
         save_CFPdata(now,number,can,pet)
-        datalist[now].update({ number : {'can' : can, 'pet' : pet} })
     
-    return datalist
+    
+#kg 데이터셋을 프론트로 전송
+def send_all_cfp():
+    date_string = datetime.datetime.now()
+    # Modifier to operate at a fixed time
+    start_time = datetime.time(00, 30, 0) # hours minutes seconds
+    end_time = datetime.time(23, 59, 10) # hours minutes seconds
+    dd = find_all_cfp()
+    return dd
 
+#더미값 생성 함수
+# Function to generate a random number between 1 and 4 for 'number'
+def generate_random_number():
+    return random.randint(1, 4)
+
+# Function to generate random values between 0 and 100 for 'can', 'gen', and 'pet'
+def generate_random_value():
+    return random.randint(0, 100)
+
+# Function to get the current time as 'localdate'
+def get_current_time():
+    return time.time()
+
+# Flask route to insert data into the MySQL table
+def insert_data():
+    with app.app_context():
+        cur = mysql.connection.cursor()
+        print(time.time())
+        # Generate random values for 'can', 'gen', and 'pet'
+        can_value = generate_random_value()
+        gen_value = generate_random_value()
+        pet_value = generate_random_value()
+
+        # Generate a random number for 'number'
+        number_value = generate_random_number()
+
+        # Get the current time as 'localdate'
+        localdate_value = get_current_time()
+
+        cur.execute("INSERT INTO resultdata (localdate, number, can, gen, pet) VALUES (%s, %s, %s, %s, %s)", (localdate_value, number_value, can_value, gen_value, pet_value))
+        mysql.connection.commit()    
+        cur.close()
+
+        return "Data inserted successfully!"
 
     
 ##정해진 시간에 열리는 수식어와 아래의 스케쥴 함수를 이용하면 정확히 정해진 시각에 1번만 작동
-# schedule = BackgroundScheduler(timezone='Asia/Seoul') 
+schedule = BackgroundScheduler(timezone='Asia/Seoul') 
 # schedule.add_job(now_time, 'cron', hour='00', minute='00', second='00')
 # schedule.add_job(AvgData, 'cron', hour='23', minute='59', second='03')
 
+#-------00시 자정 시간 체크
+schedule.add_job(first_time_set, 'cron', hour='00', minute='00', second='00')
+#-------11시 59분 마지막 시간 체크
+schedule.add_job(last_time_set, 'cron', hour='00', minute='00', second='00')
 
-# schedule.add_job(least_time, 'cron', second='10')
+# schedule.add_job(insert_data, 'cron', second='10')
 
-# schedule.start()
+schedule.start()
 
 
 

@@ -2,8 +2,9 @@ from sched import scheduler
 import time
 from flask import Response, jsonify, request, Flask
 
-from data import send_all_kgdata,CFP
-from avgdata import send_all_data
+from data import send_all_kgdata,find_all_cfp,KgData,CFP
+from avgdata import send_all_data,Avgg2
+
 
 
 app = Flask(__name__)
@@ -14,7 +15,8 @@ def hello_pybo():
 
 @app.route('/data/cfp', methods=['GET'])
 def send2():
-    return CFP()
+    cfp_data = find_all_cfp()
+    return cfp_data
 
 @app.route('/data/kgd', methods=['GET'])
 def send():
@@ -27,6 +29,21 @@ def test():
     avg_data = send_all_data()
     return jsonify(avg_data)
 
+
+#쓰레기 강제저장 ( test )
+@app.route('/data/test3', methods=['GET'])
+def sendd():
+    return Avgg2()
+
+@app.route('/data/test2', methods=['GET'])
+def senddd():
+    kg_data = KgData()
+    return kg_data
+
+@app.route('/data/test1', methods=['GET'])
+def sendddd():
+    # return send_all_data()
+    return CFP()
 
 if __name__ == '__main__':
     app.run(debug=False,host="127.0.0.1",port=5000)
