@@ -18,8 +18,7 @@ load_dotenv()
 global real
 global fristtime
 global lasttime
-fristtime = 1689778800
-lasttime = 1689864600
+fristtime = 1689865200
 
 app = Flask(__name__)
 
@@ -34,14 +33,14 @@ app.config['MYSQL_DB'] = os.getenv("MYSQL_DB")
 
 def first_time_set():
     global fristtime
-    fristtime = time.time
-    print("fristtime = " + fristtime)
+    fristtime = time.time()
+    print("fristtime = %s",str(fristtime))
     
     
 def last_time_set():
-    global lasttime
-    lasttime = time.time
-    print("lasttime = " + lasttime)
+    lasttime = time.time()
+    print("lasttime =",lasttime)
+    return lasttime
     
 
 #kg데이터를 db에 저장
@@ -112,13 +111,13 @@ def data_all_number():
 #기계별로 캔,페트,일반 더한 값
 def Bring_All_Data(number):
     global fristtime
-    global lasttime
+    lasttime = last_time_set()
     with app.app_context():
         cur = mysql.connection.cursor()
-        cur.execute("SELECT sum(can*15.5), sum(gen*15), sum(pet*16.2) FROM resultdata where number= %s AND resultdata.localdate BETWEEN %s AND %s",(number,fristtime,lasttime))
+        cur.execute("SELECT sum(can*16), sum(gen*15), sum(pet*16) FROM resultdata where number= %s AND resultdata.localdate BETWEEN %s AND %s",(number,fristtime,lasttime))
         results = cur.fetchall() 
         cur.close()
-        data = [int(item) for item in results[0]]
+        data = [int(item) if item is not None else 0 for item in results[0]]
         return data
 
 #기계별로 kg을 구해서 백엔드로 정보를 db에 저장 (현재까지 버려진 kg or 달 별로 계산 가능)
@@ -137,6 +136,7 @@ def KgData():
         pet = numberdata[2]/100
         save_kgdata(now,number,can,gen,pet)
     
+    return "savedataok!"
     
 #kg 데이터셋을 프론트로 전송
 def send_all_kgdata():
@@ -148,7 +148,7 @@ def send_all_kgdata():
     return dd
 
 
-#각 기계별 페트,캔의 탄소 저감량 캔 절감되는 에너지양 (95%기준, 페트 70% 기준) 프론트로 전송
+#각 기계별 페트,캔의 탄소 저감량 캔 절감되는 에너지양 (95%기준, 페트 70% 기준)을 계산하여 db에 저장
 def CFP():
     date_strin = datetime.datetime.now()
     now = date_strin.strftime("%Y-%m-%d")
@@ -160,6 +160,8 @@ def CFP():
         can = numberdata[0]*10*0.95
         pet = numberdata[2]*3.8*0.7
         save_CFPdata(now,number,can,pet)
+        
+    return "savedataok!"
     
     
 #kg 데이터셋을 프론트로 전송
@@ -178,7 +180,7 @@ def generate_random_number():
 
 # Function to generate random values between 0 and 100 for 'can', 'gen', and 'pet'
 def generate_random_value():
-    return random.randint(0, 100)
+    return random.randint(0, 10)
 
 # Function to get the current time as 'localdate'
 def get_current_time():
@@ -214,10 +216,9 @@ schedule = BackgroundScheduler(timezone='Asia/Seoul')
 
 #-------00시 자정 시간 체크
 schedule.add_job(first_time_set, 'cron', hour='00', minute='00', second='00')
-#-------11시 59분 마지막 시간 체크
-schedule.add_job(last_time_set, 'cron', hour='00', minute='00', second='00')
 
-# schedule.add_job(insert_data, 'cron', second='10')
+
+schedule.add_job(insert_data, 'cron', second='10')
 
 schedule.start()
 

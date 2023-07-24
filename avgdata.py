@@ -22,14 +22,14 @@ lasttime = 1689864600
 
 def first_time_set():
     global fristtime
-    fristtime = time.time
-    print("fristtime = " + fristtime)
+    fristtime = time.time()
+    print("fristtime = %s",str(fristtime))
     
     
 def last_time_set():
-    global lasttime
-    lasttime = time.time
-    print("lasttime = " + lasttime)
+    lasttime = time.time()
+    print("lasttime =",lasttime)
+    return lasttime
 
 real = True
 
@@ -58,24 +58,26 @@ def save_data(day,number,can,pet,gen):
 def data_all_sum(datanumber):
     global fristtime
     global lasttime
+    last_time_set()
     with app.app_context():
         cur = mysql.connection.cursor()
         cur.execute("SELECT SUM(resultdata.can),SUM(resultdata.pet), SUM(resultdata.gen) FROM resultdata WHERE number = %s AND resultdata.localdate BETWEEN %s AND %s",(datanumber,fristtime,lasttime))
         results = cur.fetchall() 
         cur.close()
-        data = [item for item in results[0]]
+        data = [int(item) if item is not None else 0 for item in results[0]]
         return data
 
 #기계별로 캔,페트,일반 다 더한 값
 def all_sum(datanumber):
     global fristtime
     global lasttime
+    last_time_set()
     with app.app_context():
         cur = mysql.connection.cursor()
         cur.execute("SELECT SUM(resultdata.can) + SUM(resultdata.pet) + SUM(resultdata.gen) FROM resultdata WHERE number = %s AND resultdata.localdate BETWEEN %s AND %s",(datanumber,fristtime,lasttime))
         results = cur.fetchall() 
         cur.close()
-        data = [int(item[0]) for item in results]
+        data = [int(item) if item is not None else 0 for item in results[0]]
         return data
 
 #설치된 기계의 넘버링
@@ -126,7 +128,8 @@ def Avgg2():
                     lsatresult.append(data/all[0]*100)
 
             save_data(now,i,format(lsatresult[0],".2f"),format(lsatresult[2],".2f"),format(lsatresult[1],".2f"))                     
-        
+    
+    return "savedataok!"
     
 
 #db에서 검색한 정보를 프론트로 전송
@@ -149,8 +152,7 @@ schedule = BackgroundScheduler(timezone='Asia/Seoul')
 # schedule.add_job(AvgData, 'cron', hour='23', minute='59', second='03')
 #-------00시 자정 시간 체크
 schedule.add_job(first_time_set, 'cron', hour='00', minute='00', second='00')
-#-------11시 59분 마지막 시간 체크
-schedule.add_job(last_time_set, 'cron', hour='00', minute='00', second='00')
+
 
 
 

@@ -4,6 +4,7 @@ from flask import Response, jsonify, request, Flask
 
 from data import send_all_kgdata,find_all_cfp,KgData,CFP
 from avgdata import send_all_data,Avgg2
+from datafilebh import get_data_and_save
 
 
 
@@ -44,6 +45,12 @@ def senddd():
 def sendddd():
     # return send_all_data()
     return CFP()
+
+
+@app.route('/data/savedatafile', methods=['GET'])
+def senddd2d():
+    # return send_all_data()
+    return get_data_and_save()
 
 if __name__ == '__main__':
     app.run(debug=False,host="127.0.0.1",port=5000)
