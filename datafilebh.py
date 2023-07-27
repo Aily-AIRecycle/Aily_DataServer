@@ -55,7 +55,7 @@ def get_data_and_save():
         data_json = json.dumps(data, default=custom_encoder, indent=4)
 
         # Specify the path to save the JSON file (replace 'path/to/save' with your desired path)
-        save_path = 'C:\DataFile\data.json'
+        save_path = 'home\lee\DataFile\data.json'
 
         try:
             # Check if the file exists and is non-empty
