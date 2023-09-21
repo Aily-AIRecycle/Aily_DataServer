@@ -50,15 +50,12 @@ def find_all_resultdata():
 def get_data_and_save():
     with app.app_context():
         data = find_all_resultdata()
-
-        # Convert the list to JSON with proper indentation (4 spaces)
+        
         data_json = json.dumps(data, default=custom_encoder, indent=4)
 
-        # Specify the path to save the JSON file (replace 'path/to/save' with your desired path)
         save_path = 'home\lee\DataFile\data.json'
 
         try:
-            # Check if the file exists and is non-empty
             if os.path.exists(save_path) and os.path.getsize(save_path) > 0:
                 with open(save_path, 'r') as json_file:
                     existing_data = json.load(json_file)
@@ -67,10 +64,8 @@ def get_data_and_save():
         except FileNotFoundError:
             existing_data = {}
 
-        # Merge existing data with new data
         existing_data.update(data)
 
-        # Save the merged data to the JSON file with proper indentation
         with open(save_path, 'w') as json_file:
             json.dump(existing_data, json_file, indent=4)
 

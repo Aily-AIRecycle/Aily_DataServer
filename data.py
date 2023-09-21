@@ -78,23 +78,7 @@ def find_all_kgdata():
             }
         return datalist
 
-#cfp(절약되는 탄소의양)의 데이터를 모두 조회(gm 기준)
-def find_all_cfp():
-    with app.app_context():
-        cur = mysql.connection.cursor()
-        cur.execute("SELECT * FROM cfp")
-        rows = cur.fetchall()
-        cur.close()
-        datalist = {}
-        for row in rows:
-            date, number, can, pet = row
-            if date not in datalist:
-                datalist[date] = {}
-            datalist[date][number] = {
-                "can": format(can, ".2f"),
-                "pet": format(pet, ".2f")
-            }
-        return datalist
+
 
 
 
@@ -147,6 +131,23 @@ def send_all_kgdata():
     dd = find_all_kgdata()
     return dd
 
+#cfp(절약되는 탄소의양)의 데이터를 모두 조회(gm 기준)
+def find_all_cfp():
+    with app.app_context():
+        cur = mysql.connection.cursor()
+        cur.execute("SELECT * FROM cfp")
+        rows = cur.fetchall()
+        cur.close()
+        datalist = {}
+        for row in rows:
+            date, number, can, pet = row
+            if date not in datalist:
+                datalist[date] = {}
+            datalist[date][number] = {
+                "can": format(can, ".2f"),
+                "pet": format(pet, ".2f")
+            }
+        return datalist
 
 #각 기계별 페트,캔의 탄소 저감량 캔 절감되는 에너지양 (95%기준, 페트 70% 기준)을 계산하여 db에 저장
 def CFP():
@@ -164,7 +165,7 @@ def CFP():
     return "savedataok!"
     
     
-#kg 데이터셋을 프론트로 전송
+#cfp 데이터셋을 프론트로 전송
 def send_all_cfp():
     date_string = datetime.datetime.now()
     # Modifier to operate at a fixed time
@@ -218,7 +219,7 @@ schedule = BackgroundScheduler(timezone='Asia/Seoul')
 schedule.add_job(first_time_set, 'cron', hour='00', minute='00', second='00')
 
 
-schedule.add_job(insert_data, 'cron', second='10')
+# schedule.add_job(insert_data, 'cron', second='10')
 
 schedule.start()
 
