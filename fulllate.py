@@ -25,9 +25,8 @@ def fulllate_calculate(result_Data):
     # if(flag_can_cm + 5 < can_cm ):
     #     result_can_cm = int(can_cm / hight * 100)
     
-    #오차범위 5cm
     
-    
+
     
     return { 
             "number " : number,

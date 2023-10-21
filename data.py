@@ -30,6 +30,7 @@ app.config['MYSQL_USER'] = os.getenv("MYSQL_USER")
 app.config['MYSQL_PASSWORD'] = os.getenv("MYSQL_PASSWORD")
 app.config['MYSQL_HOST'] = os.getenv("MYSQL_HOST")
 app.config['MYSQL_DB'] = os.getenv("MYSQL_DB")
+    
 
 def first_time_set():
     global fristtime
@@ -41,7 +42,14 @@ def last_time_set():
     lasttime = time.time()
     print("lasttime =",lasttime)
     return lasttime
-    
+
+#키오스크에서 받아온 데이터를 db에 삽입
+def trash_insert_database(number,can,pet,gen ):
+    with app.app_context():
+        cur = mysql.connection.cursor()
+        cur.execute("INSERT INTO resultdata (localdate,number,can,gen,pet) VALUE(%s,%s,%s,%s,%s)",(time.time(),number,can,pet,gen))
+        mysql.connection.commit() 
+        cur.close()
 
 #kg데이터를 db에 저장
 def save_kgdata(day,number,can,pet,gen):
@@ -59,29 +67,6 @@ def save_CFPdata(day,number,can,pet):
         mysql.connection.commit() 
         cur.close()
 
-#kg의 데이터를 모두 조회
-def find_all_kgdata():
-    with app.app_context():
-        cur = mysql.connection.cursor()
-        cur.execute("SELECT * FROM kgd")
-        rows = cur.fetchall()
-        cur.close()
-        datalist = {}
-        for row in rows:
-            date, number, can, gen, pet = row
-            if date not in datalist:
-                datalist[date] = {}
-            datalist[date][number] = {
-                "can": format(can, ".2f"),
-                "gen": format(gen, ".2f"),
-                "pet": format(pet, ".2f")
-            }
-        return datalist
-
-
-
-
-
 #설치된 기계의 넘버링 모두 조회
 def data_all_number():
     with app.app_context():
@@ -92,7 +77,7 @@ def data_all_number():
         data = [item[0] for item in pp]
         return data
 
-#기계별로 캔,페트,일반 더한 값
+#기계별로 캔,페트,일반 총 중량 구한 값
 def Bring_All_Data(number):
     global fristtime
     lasttime = last_time_set()
@@ -103,6 +88,9 @@ def Bring_All_Data(number):
         cur.close()
         data = [int(item) if item is not None else 0 for item in results[0]]
         return data
+
+
+#-----------------------------------kg 데이터 관련--------------------------------------------------#
 
 #기계별로 kg을 구해서 백엔드로 정보를 db에 저장 (현재까지 버려진 kg or 달 별로 계산 가능)
 def KgData():
@@ -121,6 +109,26 @@ def KgData():
         save_kgdata(now,number,can,gen,pet)
     
     return "savedataok!"
+
+#kg의 데이터를 모두 조회
+def find_all_kgdata():
+    with app.app_context():
+        cur = mysql.connection.cursor()
+        cur.execute("SELECT * FROM kgd")
+        rows = cur.fetchall()
+        cur.close()
+        datalist = []
+        for row in rows:
+            date, number, can, gen, pet = row
+            data_dict = {
+                "date": date,
+                "number": number,
+                "can": format(can, ".2f"),
+                "gen": format(gen, ".2f"),
+                "pet": format(pet, ".2f")
+            }
+            datalist.append(data_dict)
+        return datalist
     
 #kg 데이터셋을 프론트로 전송
 def send_all_kgdata():
@@ -131,23 +139,10 @@ def send_all_kgdata():
     dd = find_all_kgdata()
     return dd
 
-#cfp(절약되는 탄소의양)의 데이터를 모두 조회(gm 기준)
-def find_all_cfp():
-    with app.app_context():
-        cur = mysql.connection.cursor()
-        cur.execute("SELECT * FROM cfp")
-        rows = cur.fetchall()
-        cur.close()
-        datalist = {}
-        for row in rows:
-            date, number, can, pet = row
-            if date not in datalist:
-                datalist[date] = {}
-            datalist[date][number] = {
-                "can": format(can, ".2f"),
-                "pet": format(pet, ".2f")
-            }
-        return datalist
+#------------------------------------------------------------------------------------------------------------#
+
+
+#-----------------------------------절약되는 탄소 데이터 관련--------------------------------------------------#
 
 #각 기계별 페트,캔의 탄소 저감량 캔 절감되는 에너지양 (95%기준, 페트 70% 기준)을 계산하여 db에 저장
 def CFP():
@@ -163,8 +158,26 @@ def CFP():
         save_CFPdata(now,number,can,pet)
         
     return "savedataok!"
-    
-    
+
+#cfp(절약되는 탄소의양)의 데이터를 모두 조회(gm 기준)
+def find_all_cfp():
+    with app.app_context():
+        cur = mysql.connection.cursor()
+        cur.execute("SELECT * FROM cfp")
+        rows = cur.fetchall()
+        cur.close()
+        datalist = []
+        for row in rows:
+            date, number, can, pet = row
+            data_dict = {
+                "date": date,
+                "number": number,
+                "can": format(can, ".2f"),
+                "pet": format(pet, ".2f")
+            }
+            datalist.append(data_dict)
+        return datalist
+        
 #cfp 데이터셋을 프론트로 전송
 def send_all_cfp():
     date_string = datetime.datetime.now()
@@ -174,7 +187,11 @@ def send_all_cfp():
     dd = find_all_cfp()
     return dd
 
-#더미값 생성 함수
+#-------------------------------------------------------------------------------------#
+
+
+
+#---------------------------------------더미값 생성 함수--------------------------------#
 # Function to generate a random number between 1 and 4 for 'number'
 def generate_random_number():
     return random.randint(1, 4)
@@ -208,11 +225,10 @@ def insert_data():
         cur.close()
 
         return "Data inserted successfully!"
-
+#-------------------------------------------------------------------------------------#
     
 ##정해진 시간에 열리는 수식어와 아래의 스케쥴 함수를 이용하면 정확히 정해진 시각에 1번만 작동
 schedule = BackgroundScheduler(timezone='Asia/Seoul') 
-# schedule.add_job(now_time, 'cron', hour='00', minute='00', second='00')
 # schedule.add_job(AvgData, 'cron', hour='23', minute='59', second='03')
 
 #-------00시 자정 시간 체크
